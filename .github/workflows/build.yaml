@@ -17,6 +17,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'microsoft'
+      - name: Configure Maven
+        uses: s4u/maven-settings-action@v2.8.0
+        with:
+          servers: '[{"id": "DCOM", "username": "beachtom", "password": "${{ secrets.MAVEN_TOKEN }}"}]'
       - run: mvn package
       - run: mkdir dist
       - run: cp package/RegulationsPipeline-0.01.jar dist/RegulationTransformation.jar
