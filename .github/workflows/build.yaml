@@ -23,7 +23,7 @@ jobs:
           servers: '[{"id": "DCOM", "username": "beachtom", "password": "${{ secrets.MAVEN_TOKEN }}"}]'
       - run: mvn package
       - run: mkdir dist
-      - run: cp package/RegulationsPipeline-0.01.jar dist/RegulationTransformation.jar
+      - run: cp target/RegulationsPipeline-0.01.jar dist/RegulationTransformation.jar
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
