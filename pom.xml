@@ -71,7 +71,7 @@
     <dependency>
       <groupId>org.dcom</groupId>
       <artifactId>dcomcore</artifactId>
-      <version>0.01</version>
+      <version>0.7.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
@@ -124,10 +124,4 @@
       <version>1.0.0</version>
     </dependency>
   </dependencies>
-  <repositories>
-    <repository>
-      <id>DCOM</id>
-      <url>https://maven.pkg.github.com/D-COM-Network/*</url>
-    </repository>
-  </repositories>
 </project>

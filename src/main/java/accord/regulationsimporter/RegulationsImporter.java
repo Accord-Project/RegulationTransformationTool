@@ -17,6 +17,11 @@ import java.net.URL;
 import java.util.Arrays;
 
 import org.dcom.core.compliancedocument.ComplianceDocument;
+import org.dcom.core.compliancedocument.ComplianceItem;
+import org.dcom.core.compliancedocument.Paragraph;
+import org.dcom.core.compliancedocument.inline.InlineItem;
+import org.dcom.core.compliancedocument.inline.RASEBox;
+import org.dcom.core.compliancedocument.inline.RASETag;
 import org.dcom.core.compliancedocument.deserialisers.XMLComplianceDocumentDeserialiser;
 import org.dcom.core.compliancedocument.deserialisers.JSONComplianceDocumentDeserialiser;
 import org.dcom.core.compliancedocument.serialisers.XMLComplianceDocumentSerialiser;
@@ -44,9 +49,80 @@ import com.github.bjansen.ssv.SwaggerValidator;
 import java.io.InputStreamReader;
 import com.github.fge.jsonschema.core.report.ProcessingReport;
 import com.github.fge.jsonschema.core.exceptions.ProcessingException;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.TokenStream;
+import org.antlr.v4.runtime.CommonTokenStream;
 
 public class RegulationsImporter {
 
+	
+    private static AccordParser.AccordRulesContext getTree(String text) {
+        AccordLexer lexer  = new AccordLexer(CharStreams.fromString(text));   
+        TokenStream tokenStream = new CommonTokenStream(lexer);
+        AccordParser parser = new AccordParser(tokenStream);
+        parser.removeErrorListeners();
+        parser.addErrorListener(new ErrorListener());
+        try {
+            AccordParser.AccordRulesContext tree = parser.accordRules();
+            return tree;
+        } catch (Exception e) {
+          return null;
+        }
+    }
+
+    private static boolean isSimpleExpression(AccordParser.AccordRulesContext tree) {
+    	if ( tree.lOp() != null || tree.accordRule() == null) return false;
+    	var rule = tree.accordRule();
+    	if (rule.bOp()==null) return false;
+    	if (rule.target(0) ==null) return false;
+    	if (rule.target(1) ==null && rule.value()==null) return false;
+    	return true;
+    }
+
+	private static void makeNickCompatible(RASETag tag) {
+		System.out.println("FOUND TAG TO FIX:"+tag.getProperty());
+		AccordParser.AccordRulesContext tree = getTree(tag.getProperty());
+		if (tag.getProperty().equals("") && !tag.getReferences().equals("")) {
+			tag.setProperty(tag.getReferences());
+			tag.setComparator("=");
+			tag.setProperty(tag.getBody());
+			tag.setValue("true");
+		}
+		if (tree==null) return;
+		if (isSimpleExpression(tree)) {
+			//simple expression
+			String comparator = tree.accordRule().bOp().getText();
+			String value = "";
+			String unit = "";
+			if (tree.accordRule().value() != null) {
+				if (tree.accordRule().value().unit() !=null) {
+					unit=tree.accordRule().value().unit().getText();
+					value = tree.accordRule().value().NUMBER().getText();
+				} else {
+					value = tree.accordRule().value().getText();
+				}
+			} else value = tree.accordRule().target(1).getText();
+			String property = tree.accordRule().target(0).getText();
+			System.out.println(property+comparator+value);
+			tag.setProperty(property.replaceAll(":",""));
+			tag.setComparator(comparator.replaceAll(":",""));
+			tag.setValue(value.replaceAll(":",""));
+			tag.setUnit(unit.replaceAll(":",""));
+		} else {
+			tag.setComparator("=");
+			tag.setProperty(tag.getBody());
+			tag.setValue("true");
+		}
+		
+	}
+
+	private static void makeNickCompatible(RASEBox box) {
+		for (InlineItem inlineItem: box.getAllSubItems()) {
+			if (inlineItem instanceof RASETag) makeNickCompatible((RASETag)inlineItem);
+			if (inlineItem instanceof RASEBox) makeNickCompatible((RASEBox)inlineItem);			
+		}
+	}
+	
 
 	private static String ONTOLOGY_URI="https://data.accordproject.eu/";
 
@@ -123,6 +199,22 @@ public class RegulationsImporter {
 
 		if (outputFilename.endsWith(".html")) {
 
+			if (Arrays.asList(flags).contains("nickcompliant")) {
+				System.out.println("MAKING NICK COMPLIANT");
+				for (ComplianceItem item: document.getAllSubItems()) {
+					if (item instanceof Paragraph) {
+						if (item.hasMetaData("reference")) {
+							String reference = item.getMetaDataString("reference");
+							item.removeMetaData("reference");
+							item.setMetaData("raseProperty","complies with "+reference);
+						}
+						for (InlineItem inlineItem: ((Paragraph)item).getInlineItems()) {
+							if (inlineItem instanceof RASETag) makeNickCompatible((RASETag)inlineItem);
+							if (inlineItem instanceof RASEBox) makeNickCompatible((RASEBox)inlineItem);
+						}
+					}
+				}
+			}
 			String data = XMLComplianceDocumentSerialiser.serialise(document,true);
 			try {
 				BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilename));

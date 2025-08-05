@@ -233,6 +233,7 @@ public class OntologyComplianceDocumentDeserialiser {
           value = escapeString(value);
       }
       String rule;
+      if (operator==null) operator="";
       rule = target +" " +operator +" "+value + " " +unit;
       if (operator.equals("+") || operator.equals("*") || operator.equals("/") || operator.equals("-")) rule ="("+ rule +")";
       return rule;
