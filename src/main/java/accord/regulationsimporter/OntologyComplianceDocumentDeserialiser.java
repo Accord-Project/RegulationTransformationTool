@@ -51,7 +51,7 @@ public class OntologyComplianceDocumentDeserialiser {
         ArrayList<Object> sections =safeArrayList(data.get("hasPart"));
         for (int i=0; i < sections.size();i++) document.addSection(parseSection((HashMap<String,Object>)sections.get(i),document));
       }
-      LOGGER.trace("Deserialising "+document);
+      LOGGER.info("Deserialising "+document);
       return document;
     } catch (Exception e) {
       e.printStackTrace();
@@ -80,7 +80,7 @@ public class OntologyComplianceDocumentDeserialiser {
         else section.addParagraph(parseParagraph(subItem,section));
       }
     }
-    LOGGER.trace("Deserialising "+section);
+    LOGGER.info("Deserialising "+section);
     return section;
   }
 
@@ -111,7 +111,7 @@ public class OntologyComplianceDocumentDeserialiser {
       for (int i=0; i < inLineParts.size();i++) inlineItems.add(parseInlineItem((HashMap<String,Object>)inLineParts.get(i)));
     }
     paragraph.setInlineItems(inlineItems);
-    LOGGER.trace("Deserialising "+paragraph);
+    LOGGER.info("Deserialising "+paragraph);
     return paragraph;
   }
 
@@ -147,7 +147,6 @@ public class OntologyComplianceDocumentDeserialiser {
           o = ((ArrayList)o).get(0);
         }
         String rule = parseRule((HashMap<String,Object>)o); 
-        //System.out.println(rule);
          tag = new RASETag(type,rule,"", "", "", ""+e.get("identifier"), ""+e.get("asText")+" ",references);
       } else  tag = new RASETag(type,"","", "", "", ""+e.get("identifier"), ""+e.get("asText")+" ",references);
       return tag;
@@ -286,7 +285,6 @@ public class OntologyComplianceDocumentDeserialiser {
         Figure i=new Figure(_parent);
         parseMetaData(i,e);
         i.setImageData(e.get("asText").toString());
-        LOGGER.trace("Deserialising "+i);
         return i;
       } else {
         //its a table
@@ -304,9 +302,18 @@ public class OntologyComplianceDocumentDeserialiser {
             ArrayList<Object> listCells=safeArrayList(rowData.get("hasPart"));
             for (int x=0; x < listCells.size();x++) {
               HashMap<String,Object> cellData=(HashMap<String,Object>)(listCells.get(x));
-              Cell c=new DataCell(row);
+              ArrayList<Object> types = safeArrayList(cellData.get("$type"));
+              Cell c=null;
+              if (types.contains("HeaderCell")) c=new TitleCell(row);
+              else c= new DataCell(row);
               parseMetaData(c,cellData);
               Paragraph p = new Paragraph(c);
+              String type ="";
+              if (types.contains("RequirementStatement")) type ="RequirementSection";
+              if (types.contains("ApplicationStatement")) type ="ApplicationSection";
+              if (types.contains("ExceptionStatement")) type ="ExceptionSection";
+              if (types.contains("SelectionStatement")) type ="SelectionSection";
+              p.setMetaData("raseType",type); 
               ArrayList<Object> inLineParts =  safeArrayList(cellData.get("hasInlinePart"));
               List<InlineItem> inlineItems = new ArrayList<InlineItem>();
               if (cellData.containsKey("asText")) {
@@ -319,7 +326,7 @@ public class OntologyComplianceDocumentDeserialiser {
             }
           }
         }
-        LOGGER.trace("Deserialising "+t);
+        LOGGER.info("Deserialising "+t);
         return t;
       }
   }
